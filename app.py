@@ -1,96 +1,241 @@
-from flask import Flask, render_template, request, jsonify
-import markdown
+from flask import Flask, render_template, request
+from flask_socketio import SocketIO, emit
 import time
-from datetime import datetime
-from strands import Agent
-from strands.models.anthropic import AnthropicModel
-from strands_tools import calculator
-
-model = AnthropicModel(
-    client_args={
-    },
-    max_tokens=2000,
-    model_id="claude-3-7-sonnet-20250219",
-    params={
-        "temperature": 0.5,
-    }
-)
-
-agent = Agent(model=model, tools=[calculator])
+import threading
+import uuid
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your-secret-key-here'
 
-# In-memory storage for messages (use database in production)
-messages = []
+# Configure SocketIO with better settings for stability
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode='threading',
+    ping_timeout=60,
+    ping_interval=25,
+    logger=True,
+    engineio_logger=True
+)
+
+# Store active sessions
+active_sessions = {}
 
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('chat.html')
 
 
-@app.route('/send_message', methods=['POST'])
-def send_message():
-    data = request.get_json()
-    message_text = data.get('message', '').strip()
+def simulate_streaming_response(message, session_id, client_sid):
+    """Simulate a streaming response from an AI/chatbot with proper session handling"""
+    try:
+        # Check if session is still active
+        if session_id not in active_sessions:
+            print(f"Session {session_id} no longer active, stopping stream")
+            return
 
-    print(f'Message text {message_text}')
+        # Example responses with markdown
+        responses = {
+            "hello": "Hello! 👋 Welcome to our **modern chat interface**. How can I help you today?",
+            "markdown": """Here's an example of **markdown rendering**:
 
-    if message_text:
-        # Convert markdown to HTML
-        html_content = markdown.markdown(message_text, extensions=['codehilite', 'fenced_code'])
+## Features
+- **Bold text** and *italic text*
+- `Inline code` and code blocks
+- Lists and formatting
+- Links: [GitHub](https://github.com)
 
-        message = {
-            'id': len(messages) + 1,
-            'text': message_text,
-            'html': html_content,
-            'timestamp': datetime.now().strftime('%H:%M'),
-            'sender': 'user'
+```python
+def hello_world():
+    print("Hello from the chat!")
+```
+
+> This is a blockquote with some important information.
+""",
+            "default": f"""Thanks for your message: "*{message}*"
+
+I'm a **streaming chat bot** that can render:
+- ✅ **Markdown formatting**
+- ✅ `Code snippets`
+- ✅ Lists and quotes
+- ✅ Real-time streaming
+
+### How it works:
+1. You send a message via WebSocket
+2. I process it on the server
+3. Stream back the response in chunks
+4. The UI renders markdown in real-time
+
+Try typing "markdown" to see more examples!
+"""
         }
-        messages.append(message)
 
-        # Simulate AI response (replace with actual AI integration)
-        time.sleep(0.5)  # Simulate processing time
-        ai_response = generate_agent_response(message_text)
-        ai_html = markdown.markdown(ai_response, extensions=['codehilite', 'fenced_code'])
+        # Select response based on message content
+        if "hello" in message.lower():
+            response_text = responses["hello"]
+        elif "markdown" in message.lower():
+            response_text = responses["markdown"]
+        else:
+            response_text = responses["default"]
 
-        ai_message = {
-            'id': len(messages) + 1,
-            'text': ai_response,
-            'html': ai_html,
-            'timestamp': datetime.now().strftime('%H:%M'),
-            'sender': 'ai'
+        # Stream the response word by word with realistic timing
+        words = response_text.split()
+        current_text = ""
+
+        for i, word in enumerate(words):
+            # Check if session is still active before each emit
+            if session_id not in active_sessions:
+                print(f"Session {session_id} disconnected during streaming")
+                return
+
+            current_text += word + " "
+
+            # Emit the partial response to specific client using room
+            socketio.emit('message_chunk', {
+                'text': current_text.strip(),
+                'is_complete': False,
+                'session_id': session_id
+            }, to=client_sid)
+
+            # Vary the delay for more realistic streaming
+            if word.endswith('.') or word.endswith('!') or word.endswith('?'):
+                time.sleep(0.15)  # Longer pause after sentences
+            else:
+                time.sleep(0.08)  # Normal word delay
+
+        # Send final complete message if session still active
+        if session_id in active_sessions:
+            socketio.emit('message_chunk', {
+                'text': current_text.strip(),
+                'is_complete': True,
+                'session_id': session_id
+            }, to=client_sid)
+
+    except Exception as e:
+        print(f"Error in streaming response: {e}")
+        # Send error message to client
+        socketio.emit('message_chunk', {
+            'text': "Sorry, there was an error processing your message.",
+            'is_complete': True,
+            'session_id': session_id,
+            'error': True
+        }, to=client_sid)
+
+
+@socketio.on('send_message')
+def handle_message(data):
+    try:
+        message = data.get('message', '').strip()
+        session_id = data.get('session_id', str(uuid.uuid4()))
+        client_sid = request.sid  # Get the client session ID within request context
+
+        if not message:
+            emit('error', {'msg': 'Empty message received'})
+            return
+
+        print(f"Received message from {session_id} (client: {client_sid}): {message}")
+
+        # Update session tracking
+        if session_id not in active_sessions:
+            active_sessions[session_id] = {
+                'sid': client_sid,
+                'connected_at': time.time()
+            }
+
+        # Echo the user message immediately
+        emit('user_message', {
+            'message': message,
+            'session_id': session_id
+        })
+
+        # Start streaming response in a separate thread with proper session tracking
+        def stream_wrapper():
+            simulate_streaming_response(message, session_id, client_sid)
+
+        thread = threading.Thread(target=stream_wrapper, daemon=True)
+        thread.start()
+
+    except Exception as e:
+        print(f"Error handling message: {e}")
+        emit('error', {'msg': 'Error processing message'})
+
+
+@socketio.on('connect')
+def handle_connect():
+    try:
+        client_sid = request.sid  # Get client session ID within request context
+        session_id = str(uuid.uuid4())
+
+        active_sessions[session_id] = {
+            'sid': client_sid,
+            'connected_at': time.time()
         }
-        messages.append(ai_message)
 
-        return jsonify({'success': True, 'messages': [message, ai_message]})
+        print(f'Client connected: {client_sid} with session {session_id}')
+        emit('status', {
+            'msg': 'Connected to chat server',
+            'session_id': session_id
+        })
 
-    return jsonify({'success': False, 'error': 'Empty message'})
+    except Exception as e:
+        print(f"Error on connect: {e}")
 
 
-@app.route('/get_messages')
-def get_messages():
-    return jsonify({'messages': messages})
+@socketio.on('disconnect')
+def handle_disconnect():
+    try:
+        client_sid = request.sid  # Get client session ID within request context
 
-def generate_agent_response(user_messages):
-    print('Calling Agent with message ' + user_messages)
-    res = agent(user_messages)
-    msg = res.message['content'][0]['text']
-    from pprint import pprint
-    pprint(res)
-    return msg
+        # Remove session from active sessions
+        session_to_remove = None
+        for session_id, session_data in active_sessions.items():
+            if session_data['sid'] == client_sid:
+                session_to_remove = session_id
+                break
 
-def generate_ai_response(user_message):
-    """Simple AI response generator - replace with actual AI integration"""
-    responses = [
-        f"Thanks for your message: *{user_message[:50]}...*\n\nHere's a **markdown example**:\n\n```python\nprint('Hello, World!')\n```",
-        f"I understand you said: `{user_message[:30]}...`\n\n### Here are some key points:\n- Point 1\n- Point 2\n- Point 3",
-        f"Interesting! You mentioned: **{user_message[:40]}**\n\n> This is a blockquote response\n\nAnd here's some `inline code`.",
-        f"Processing your input: *{user_message[:35]}*\n\n1. First item\n2. Second item\n3. Third item\n\n**Bold conclusion**"
-    ]
-    import random
-    return random.choice(responses)
+        if session_to_remove:
+            del active_sessions[session_to_remove]
+            print(f'Client disconnected: {client_sid}, removed session {session_to_remove}')
+        else:
+            print(f'Client disconnected: {client_sid} (no session found)')
 
+    except Exception as e:
+        print(f"Error on disconnect: {e}")
+
+
+@socketio.on('ping')
+def handle_ping():
+    """Handle ping requests to keep connection alive"""
+    emit('pong')
+
+
+# Clean up old sessions periodically
+def cleanup_sessions():
+    """Remove sessions older than 1 hour"""
+    current_time = time.time()
+    sessions_to_remove = []
+
+    for session_id, session_data in active_sessions.items():
+        if current_time - session_data['connected_at'] > 3600:  # 1 hour
+            sessions_to_remove.append(session_id)
+
+    for session_id in sessions_to_remove:
+        del active_sessions[session_id]
+        print(f"Cleaned up old session: {session_id}")
+
+
+# Start cleanup thread
+cleanup_thread = threading.Thread(target=lambda: None, daemon=True)
+cleanup_thread.start()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    print("Starting Flask-SocketIO server...")
+    print("Visit http://localhost:5000 to access the chat interface")
+    socketio.run(
+        app,
+        debug=True,
+        host='0.0.0.0',
+        port=5000,
+        allow_unsafe_werkzeug=True
+    )
