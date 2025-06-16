@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blueprints</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 95%;
+            max-width: 1200px;
+            min-height: 600px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 20px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 300;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        /* Project Selection Screen */
+        .search-section {
+            margin-bottom: 30px;
+        }
+
+        .search-bar {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 15px 50px 15px 20px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7f8c8d;
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .project-card {
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafbfc;
+        }
+
+        .project-card:hover {
+            border-color: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.15);
+        }
+
+        .project-card h3 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .project-card .acronym {
+            background: #3498db;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .project-card p {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .project-card .manager {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        /* Component List */
+        .component-list {
+            margin-top: 30px;
+        }
+
+        .component-item {
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #fafbfc;
+            transition: all 0.3s;
+        }
+
+        .component-item:hover {
+            border-color: #3498db;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.1);
+        }
+
+        .component-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .component-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .component-description {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .component-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            font-size: 13px;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+
+        .meta-value {
+            color: #7f8c8d;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .status-deployed {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .status-not-deployed {
+            background: #fdf2e9;
+            color: #e67e22;
+        }
+
+        .wiki-link {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .wiki-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Canvas Styles */
+        .canvas-container {
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            margin: 20px 0;
+            background: white;
+            position: relative;
+        }
+
+        #architectureCanvas {
+            cursor: crosshair;
+            display: block;
+        }
+
+        .canvas-tools {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .tool-group {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .tool-btn {
+            background: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .tool-btn:hover {
+            background: #d5dbdb;
+        }
+
+        .tool-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(127, 140, 141, 0.1);
+            border: 1px solid #bdc3c7;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #2c3e50;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(127, 140, 141, 0.2);
+        }
+
+        .project-header {
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .project-title {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .project-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Blueprint Management System</h1>
+            <p>Manage your AGS project components efficiently</p>
+        </div>
+
+        <!-- Project Selection Screen -->
+        <div id="projectSelectionScreen" class="screen active">
+            <div class="content">
+                <div class="search-section">
+                    <div class="search-bar">
+                        <input type="text" id="projectSearch" placeholder="Search existing projects...">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                </div>
+
+                <div class="projects-grid" id="projectsGrid">
+                    <!-- Sample projects will be populated here -->
+                </div>
+
+                <button class="btn" onclick="showCreateProject()">+ Create New Project</button>
+            </div>
+        </div>
+
+        <!-- Create Project Screen -->
+        <div id="createProjectScreen" class="screen">
+            <div class="content">
+                <button class="back-btn" onclick="showProjectSelection()">← Back</button>
+                <h2 style="margin-bottom: 30px; color: #2c3e50;">Create New Project</h2>
+                
+                <form id="createProjectForm">
+                    <div class="form-group">
+                        <label for="budgetCode">Budget Code *</label>
+                        <input type="text" id="budgetCode" required placeholder="e.g., BUD-2024-001">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="projectDescription">Description *</label>
+                        <textarea id="projectDescription" required placeholder="Describe the project objectives and scope..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="projectAcronym">Project Acronym Name *</label>
+                        <input type="text" id="projectAcronym" required placeholder="e.g., PMGT">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="projectManager">Project Manager *</label>
+                        <input type="text" id="projectManager" required placeholder="Manager's full name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="pocEmail">Point of Contact Email *</label>
+                        <input type="email" id="pocEmail" required placeholder="poc@company.com">
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-success">Create Project</button>
+                        <button type="button" class="btn btn-secondary" onclick="showProjectSelection()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Project Dashboard Screen -->
+        <div id="projectDashboardScreen" class="screen">
+            <div class="content">
+                <button class="back-btn" onclick="showProjectSelection()">← Back to Projects</button>
+                
+                <div class="project-header" id="projectHeader">
+                    <!-- Project info will be populated here -->
+                </div>
+
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">Project Components</h3>
+                
+                <button class="btn" onclick="showCreateComponent()" style="margin-bottom: 20px;">+ Create New Component</button>
+
+                <div class="component-list" id="componentList">
+                    <!-- Components will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Component Screen -->
+        <div id="createComponentScreen" class="screen">
+            <div class="content">
+                <button class="back-btn" onclick="showProjectDashboard()">← Back to Project</button>
+                <h2 style="margin-bottom: 30px; color: #2c3e50;">Create New Component</h2>
+                
+                <form id="createComponentForm">
+                    <div class="form-group">
+                        <label for="componentName">Component Name *</label>
+                        <input type="text" id="componentName" required placeholder="e.g., User Authentication Service">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="componentDescription">Component Description *</label>
+                        <textarea id="componentDescription" required placeholder="Describe the component functionality..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="wikiLink">Wiki Documentation Link</label>
+                        <input type="url" id="wikiLink" placeholder="https://wiki.company.com/component-docs">
+                    </div>
+                    
+                    <h3 style="color: #2c3e50; margin: 30px 0 20px 0;">Architecture Diagram</h3>
+                    
+                    <div class="canvas-tools">
+                        <div class="tool-group">
+                            <span style="font-weight: 600; margin-right: 10px;">Tools:</span>
+                            <button type="button" class="tool-btn active" onclick="setTool('draw')">Draw</button>
+                            <button type="button" class="tool-btn" onclick="setTool('rectangle')">Rectangle</button>
+                            <button type="button" class="tool-btn" onclick="setTool('circle')">Circle</button>
+                            <button type="button" class="tool-btn" onclick="setTool('text')">Text</button>
+                        </div>
+                        <div class="tool-group">
+                            <button type="button" class="tool-btn" onclick="clearCanvas()">Clear</button>
+                        </div>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="architectureCanvas" width="800" height="400"></canvas>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-success">Create Component</button>
+                        <button type="button" class="btn btn-secondary" onclick="showProjectDashboard()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data
+        let projects = [
+            {
+                id: 1,
+                budgetCode: 'BUD-2024-001',
+                description: 'Customer relationship management system redesign',
+                acronym: 'CRMS',
+                manager: 'John Smith',
+                pocEmail: 'john.smith@company.com',
+                components: [
+                    {
+                        id: 1,
+                        name: 'User Authentication Service',
+                        description: 'Handles user login, registration, and security',
+                        dateCreated: '2024-01-15',
+                        lastModified: '2024-02-20',
+                        isDeployed: true,
+                        wikiLink: 'https://wiki.company.com/auth-service'
+                    },
+                    {
+                        id: 2,
+                        name: 'Customer Data API',
+                        description: 'RESTful API for customer data management',
+                        dateCreated: '2024-01-20',
+                        lastModified: '2024-02-18',
+                        isDeployed: false,
+                        wikiLink: 'https://wiki.company.com/customer-api'
+                    }
+                ]
+            },
+            {
+                id: 2,
+                budgetCode: 'BUD-2024-002',
+                description: 'E-commerce platform modernization',
+                acronym: 'ECPM',
+                manager: 'Sarah Johnson',
+                pocEmail: 'sarah.johnson@company.com',
+                components: []
+            }
+        ];
+
+        let currentProject = null;
+        let currentTool = 'draw';
+        let isDrawing = false;
+        let canvas, ctx;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            displayProjects();
+            initializeCanvas();
+            
+            // Project search functionality
+            document.getElementById('projectSearch').addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                displayProjects(searchTerm);
+            });
+        });
+
+        function displayProjects(searchTerm = '') {
+            const grid = document.getElementById('projectsGrid');
+            const filteredProjects = projects.filter(project => 
+                project.description.toLowerCase().includes(searchTerm) ||
+                project.acronym.toLowerCase().includes(searchTerm) ||
+                project.manager.toLowerCase().includes(searchTerm)
+            );
+
+            grid.innerHTML = filteredProjects.map(project => `
+                <div class="project-card" onclick="selectProject(${project.id})">
+                    <div class="acronym">${project.acronym}</div>
+                    <h3>${project.description}</h3>
+                    <p><strong>Budget:</strong> ${project.budgetCode}</p>
+                    <p class="manager">Manager: ${project.manager}</p>
+                    <p><strong>Components:</strong> ${project.components.length}</p>
+                </div>
+            `).join('');
+        }
+
+        function showCreateProject() {
+            showScreen('createProjectScreen');
+        }
+
+        function showProjectSelection() {
+            showScreen('projectSelectionScreen');
+        }
+
+        function showProjectDashboard() {
+            showScreen('projectDashboardScreen');
+            if (currentProject) {
+                displayProjectDashboard();
+            }
+        }
+
+        function showCreateComponent() {
+            showScreen('createComponentScreen');
+            clearCanvas();
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function selectProject(projectId) {
+            currentProject = projects.find(p => p.id === projectId);
+            showProjectDashboard();
+        }
+
+        function displayProjectDashboard() {
+            const header = document.getElementById('projectHeader');
+            header.innerHTML = `
+                <div class="project-title">${currentProject.description}</div>
+                <div class="project-info">
+                    <div><strong>Acronym:</strong> ${currentProject.acronym}</div>
+                    <div><strong>Budget Code:</strong> ${currentProject.budgetCode}</div>
+                    <div><strong>Project Manager:</strong> ${currentProject.manager}</div>
+                    <div><strong>Contact:</strong> ${currentProject.pocEmail}</div>
+                </div>
+            `;
+
+            const componentList = document.getElementById('componentList');
+            if (currentProject.components.length === 0) {
+                componentList.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 40px;">No components yet. Create your first component!</p>';
+            } else {
+                componentList.innerHTML = currentProject.components.map(component => `
+                    <div class="component-item">
+                        <div class="component-name">${component.name}</div>
+                        <div class="component-description">${component.description}</div>
+                        <div class="component-meta">
+                            <div class="meta-item">
+                                <div class="meta-label">Date Created</div>
+                                <div class="meta-value">${new Date(component.dateCreated).toLocaleDateString()}</div>
+                            </div>
+                            <div class="meta-item">
+                                <div class="meta-label">Last Modified</div>
+                                <div class="meta-value">${new Date(component.lastModified).toLocaleDateString()}</div>
+                            </div>
+                            <div class="meta-item">
+                                <div class="meta-label">Deployment Status</div>
+                                <div class="status-badge ${component.isDeployed ? 'status-deployed' : 'status-not-deployed'}">
+                                    ${component.isDeployed ? 'Deployed' : 'Not Deployed'}
+                                </div>
+                            </div>
+                            <div class="meta-item">
+                                <div class="meta-label">Documentation</div>
+                                <div class="meta-value">
+                                    ${component.wikiLink ? `<a href="${component.wikiLink}" class="wiki-link" target="_blank">View Wiki</a>` : 'No documentation'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Form handlers
+        document.getElementById('createProjectForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const newProject = {
+                id: projects.length + 1,
+                budgetCode: document.getElementById('budgetCode').value,
+                description: document.getElementById('projectDescription').value,
+                acronym: document.getElementById('projectAcronym').value,
+                manager: document.getElementById('projectManager').value,
+                pocEmail: document.getElementById('pocEmail').value,
+                components: []
+            };
+            
+            projects.push(newProject);
+            displayProjects();
+            this.reset();
+            showProjectSelection();
+        });
+
+        document.getElementById('createComponentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const newComponent = {
+                id: currentProject.components.length + 1,
+                name: document.getElementById('componentName').value,
+                description: document.getElementById('componentDescription').value,
+                dateCreated: new Date().toISOString().split('T')[0],
+                lastModified: new Date().toISOString().split('T')[0],
+                isDeployed: false,
+                wikiLink: document.getElementById('wikiLink').value || null
+            };
+            
+            currentProject.components.push(newComponent);
+            this.reset();
+            showProjectDashboard();
+        });
+
+        // Canvas functionality
+        function initializeCanvas() {
+            canvas = document.getElementById('architectureCanvas');
+            ctx = canvas.getContext('2d');
+            
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            canvas.addEventListener('click', handleCanvasClick);
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            canvas.style.cursor = tool === 'text' ? 'text' : 'crosshair';
+        }
+
+        function startDrawing(e) {
+            if (currentTool === 'draw') {
+                isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            }
+        }
+
+        function draw(e) {
+            if (!isDrawing || currentTool !== 'draw') return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function handleCanvasClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.strokeStyle = '#2c3e50';
+            ctx.fillStyle = '#3498db';
+            ctx.lineWidth = 2;
+            
+            if (currentTool === 'rectangle') {
+                ctx.strokeRect(x - 25, y - 15, 50, 30);
+            } else if (currentTool === 'circle') {
+                ctx.beginPath();
+                ctx.arc(x, y, 20, 0, 2 * Math.PI);
+                ctx.stroke();
+            } else if (currentTool === 'text') {
+                const text = prompt('Enter text:');
+                if (text) {
+                    ctx.font = '14px Arial';
+                    ctx.fillStyle = '#2c3e50';
+                    ctx.fillText(text, x, y);
+                }
+            }
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    </script>
+</body>
+</html>
