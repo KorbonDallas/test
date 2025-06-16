@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Architecture Diagramming Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-areas: 
+                "header header header"
+                "left-rail main-canvas right-rail"
+                "footer footer footer";
+            grid-template-rows: 80px 1fr 60px;
+            grid-template-columns: 300px 1fr 250px;
+            height: 100vh;
+            gap: 2px;
+            transition: grid-template-columns 0.3s ease;
+        }
+
+        .container.left-collapsed {
+            grid-template-columns: 40px 1fr 250px;
+        }
+
+        .container.right-collapsed {
+            grid-template-columns: 300px 1fr 40px;
+        }
+
+        .container.both-collapsed {
+            grid-template-columns: 40px 1fr 40px;
+        }
+
+        /* Header */
+        .header {
+            grid-area: header;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0 0 2px 0;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .header-fields {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .header-field {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .header-field label {
+            font-size: 10px;
+            font-weight: 600;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .header-field input {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            min-width: 100px;
+            transition: border-color 0.3s ease;
+        }
+
+        .header-field input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* Left Rail */
+        .left-rail {
+            grid-area: left-rail;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-right: 2px solid rgba(255, 255, 255, 0.2);
+            overflow-y: auto;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .left-rail.collapsed {
+            padding: 20px 5px;
+            overflow: hidden;
+        }
+
+        .left-rail.collapsed .rail-content {
+            display: none;
+        }
+
+        .rail-toggle {
+            position: absolute;
+            top: 15px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        .rail-toggle:hover {
+            background: #5a67d8;
+            transform: scale(1.1);
+        }
+
+        .left-rail.collapsed .rail-toggle {
+            right: 8px;
+            transform: rotate(180deg);
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .search-field {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .search-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .palette-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            gap: 10px;
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
+        }
+
+        .service-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-icon:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border-color: #667eea;
+        }
+
+        .service-icon:active {
+            cursor: grabbing;
+        }
+
+        .service-icon::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .service-icon:hover::before {
+            transform: translateX(100%);
+        }
+
+        .service-icon span {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff9500;
+        }
+
+        .service-name {
+            font-size: 10px;
+            text-align: center;
+            margin-top: 5px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        /* Main Canvas */
+        .main-canvas {
+            grid-area: main-canvas;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .canvas-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(circle at 1px 1px, rgba(0,0,0,0.1) 1px, transparent 0);
+            background-size: 20px 20px;
+            opacity: 0.3;
+        }
+
+        .canvas-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .dropped-icon {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: move;
+            border: 3px solid transparent;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .dropped-icon:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .dropped-icon.selected {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+        }
+
+        .dropped-icon span {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ff9500;
+        }
+
+        /* Right Rail */
+        .right-rail {
+            grid-area: right-rail;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-left: 2px solid rgba(255, 255, 255, 0.2);
+            overflow-y: auto;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .right-rail.collapsed {
+            padding: 20px 5px;
+            overflow: hidden;
+        }
+
+        .right-rail.collapsed .rail-content {
+            display: none;
+        }
+
+        .right-rail .rail-toggle {
+            left: 10px;
+        }
+
+        .right-rail.collapsed .rail-toggle {
+            left: 8px;
+            transform: rotate(180deg);
+        }
+
+        .property-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .property-group {
+            margin-bottom: 20px;
+        }
+
+        .property-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .property-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: border-color 0.3s ease;
+        }
+
+        .property-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .property-select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+        }
+
+        /* Footer */
+        .footer {
+            grid-area: footer;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+            border-top: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e9ecef;
+            color: #495057;
+            border: 2px solid #dee2e6;
+        }
+
+        .btn-secondary:hover {
+            background: #f8f9fa;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #999;
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .connection-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 1px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: slideIn 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <h1>AWS Architecture Designer</h1>
+                <p>Drag and drop AWS services to create system integration diagrams</p>
+            </div>
+            <div class="header-fields">
+                <div class="header-field">
+                    <label>Name</label>
+                    <input type="text" id="diagramName" placeholder="Enter diagram name">
+                </div>
+                <div class="header-field">
+                    <label>Description</label>
+                    <input type="text" id="diagramDescription" placeholder="Enter description">
+                </div>
+                <div class="header-field">
+                    <label>AGS</label>
+                    <input type="text" id="diagramAGS" placeholder="Enter AGS">
+                </div>
+            </div>
+        </div>
+
+        <!-- Left Rail -->
+        <div class="left-rail" id="leftRail">
+            <button class="rail-toggle" id="leftToggle">◀</button>
+            <div class="rail-content">
+                <div class="search-container">
+                    <input type="text" class="search-field" placeholder="Search AWS services..." id="searchField">
+                </div>
+                <div class="palette-title">AWS Services</div>
+                <div class="palette-grid" id="paletteGrid">
+                    <!-- AWS Service Icons will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas -->
+        <div class="main-canvas" id="mainCanvas">
+            <div class="canvas-background"></div>
+            <div class="canvas-content" id="canvasContent">
+                <div class="empty-state" id="emptyState">
+                    Drag AWS services here to start designing your architecture
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Rail -->
+        <div class="right-rail" id="rightRail">
+            <button class="rail-toggle" id="rightToggle">▶</button>
+            <div class="rail-content">
+                <div class="property-title">Properties</div>
+                <div id="propertyEditor">
+                    <p style="color: #999; font-style: italic;">Select an element to edit its properties</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+            <button class="btn btn-primary" id="generateBtn">Generate</button>
+        </div>
+    </div>
+
+    <script>
+        // AWS Services data
+        const awsServices = [
+            { name: 'EC2', icon: '🖥️', category: 'Compute' },
+            { name: 'Lambda', icon: 'λ', category: 'Compute' },
+            { name: 'S3', icon: '🪣', category: 'Storage' },
+            { name: 'RDS', icon: '🗄️', category: 'Database' },
+            { name: 'DynamoDB', icon: '⚡', category: 'Database' },
+            { name: 'API Gateway', icon: '🚪', category: 'Networking' },
+            { name: 'CloudFront', icon: '🌐', category: 'Networking' },
+            { name: 'Route 53', icon: '🧭', category: 'Networking' },
+            { name: 'VPC', icon: '🏠', category: 'Networking' },
+            { name: 'ELB', icon: '⚖️', category: 'Networking' },
+            { name: 'SNS', icon: '📢', category: 'Messaging' },
+            { name: 'SQS', icon: '📬', category: 'Messaging' },
+            { name: 'CloudWatch', icon: '📊', category: 'Monitoring' },
+            { name: 'IAM', icon: '👤', category: 'Security' },
+            { name: 'KMS', icon: '🔐', category: 'Security' },
+            { name: 'ECS', icon: '📦', category: 'Containers' },
+            { name: 'EKS', icon: '☸️', category: 'Containers' },
+            { name: 'CloudFormation', icon: '📋', category: 'Management' }
+        ];
+
+        let selectedElement = null;
+        let draggedElement = null;
+        let canvasElements = [];
+        let elementCounter = 0;
+
+        // Initialize the application
+        function init() {
+            populatePalette();
+            setupEventListeners();
+        }
+
+        // Populate the service palette
+        function populatePalette() {
+            const paletteGrid = document.getElementById('paletteGrid');
+            
+            awsServices.forEach(service => {
+                const serviceContainer = document.createElement('div');
+                serviceContainer.style.textAlign = 'center';
+                
+                const serviceIcon = document.createElement('div');
+                serviceIcon.className = 'service-icon';
+                serviceIcon.draggable = true;
+                serviceIcon.dataset.service = service.name;
+                serviceIcon.innerHTML = `<span>${service.icon}</span>`;
+                
+                const serviceName = document.createElement('div');
+                serviceName.className = 'service-name';
+                serviceName.textContent = service.name;
+                
+                serviceContainer.appendChild(serviceIcon);
+                serviceContainer.appendChild(serviceName);
+                paletteGrid.appendChild(serviceContainer);
+            });
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            const searchField = document.getElementById('searchField');
+            const mainCanvas = document.getElementById('mainCanvas');
+            const generateBtn = document.getElementById('generateBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const leftToggle = document.getElementById('leftToggle');
+            const rightToggle = document.getElementById('rightToggle');
+
+            // Search functionality
+            searchField.addEventListener('input', handleSearch);
+
+            // Drag and drop for palette items
+            document.addEventListener('dragstart', handleDragStart);
+            document.addEventListener('dragover', handleDragOver);
+            document.addEventListener('drop', handleDrop);
+
+            // Canvas click for selection
+            mainCanvas.addEventListener('click', handleCanvasClick);
+
+            // Button events
+            generateBtn.addEventListener('click', handleGenerate);
+            cancelBtn.addEventListener('click', handleCancel);
+
+            // Rail toggle events
+            leftToggle.addEventListener('click', toggleLeftRail);
+            rightToggle.addEventListener('click', toggleRightRail);
+        }
+
+        // Handle search
+        function handleSearch(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const serviceIcons = document.querySelectorAll('.service-icon');
+            
+            serviceIcons.forEach(icon => {
+                const serviceName = icon.dataset.service.toLowerCase();
+                const container = icon.parentElement;
+                
+                if (serviceName.includes(searchTerm)) {
+                    container.style.display = 'block';
+                    container.classList.add('animate-in');
+                } else {
+                    container.style.display = 'none';
+                }
+            });
+        }
+
+        // Handle drag start
+        function handleDragStart(e) {
+            if (e.target.classList.contains('service-icon')) {
+                draggedElement = e.target;
+                e.dataTransfer.setData('text/plain', '');
+            } else if (e.target.classList.contains('dropped-icon')) {
+                draggedElement = e.target;
+                e.dataTransfer.setData('text/plain', '');
+            }
+        }
+
+        // Handle drag over
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        // Handle drop
+        function handleDrop(e) {
+            e.preventDefault();
+            
+            if (!draggedElement) return;
+            
+            const canvasContent = document.getElementById('canvasContent');
+            const rect = canvasContent.getBoundingClientRect();
+            
+            if (e.target.closest('#mainCanvas')) {
+                const x = e.clientX - rect.left - 40; // Center the icon
+                const y = e.clientY - rect.top - 40;
+                
+                if (draggedElement.classList.contains('service-icon')) {
+                    // Create new element from palette
+                    createCanvasElement(draggedElement.dataset.service, x, y);
+                } else if (draggedElement.classList.contains('dropped-icon')) {
+                    // Move existing element
+                    draggedElement.style.left = Math.max(0, x) + 'px';
+                    draggedElement.style.top = Math.max(0, y) + 'px';
+                }
+                
+                // Hide empty state
+                document.getElementById('emptyState').style.display = 'none';
+            }
+            
+            draggedElement = null;
+        }
+
+        // Create canvas element
+        function createCanvasElement(serviceName, x, y) {
+            const service = awsServices.find(s => s.name === serviceName);
+            if (!service) return;
+            
+            const element = document.createElement('div');
+            element.className = 'dropped-icon animate-in';
+            element.dataset.service = serviceName;
+            element.dataset.id = ++elementCounter;
+            element.style.left = Math.max(0, x) + 'px';
+            element.style.top = Math.max(0, y) + 'px';
+            element.innerHTML = `<span>${service.icon}</span>`;
+            element.draggable = true;
+            
+            document.getElementById('canvasContent').appendChild(element);
+            canvasElements.push({
+                id: elementCounter,
+                service: serviceName,
+                x: x,
+                y: y,
+                properties: {
+                    name: `${serviceName}-${elementCounter}`,
+                    description: '',
+                    environment: 'production',
+                    region: 'us-east-1'
+                }
+            });
+        }
+
+        // Handle canvas click
+        function handleCanvasClick(e) {
+            if (e.target.classList.contains('dropped-icon')) {
+                // Select element
+                document.querySelectorAll('.dropped-icon').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                
+                e.target.classList.add('selected');
+                selectedElement = e.target;
+                showPropertyEditor(e.target);
+            } else {
+                // Deselect
+                document.querySelectorAll('.dropped-icon').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                selectedElement = null;
+                hidePropertyEditor();
+            }
+        }
+
+        // Show property editor
+        function showPropertyEditor(element) {
+            const elementData = canvasElements.find(el => el.id == element.dataset.id);
+            if (!elementData) return;
+            
+            const propertyEditor = document.getElementById('propertyEditor');
+            propertyEditor.innerHTML = `
+                <div class="property-group">
+                    <label class="property-label">Service Type</label>
+                    <input type="text" class="property-input" value="${elementData.service}" readonly>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">Name</label>
+                    <input type="text" class="property-input" value="${elementData.properties.name}" 
+                           onchange="updateProperty(${elementData.id}, 'name', this.value)">
+                </div>
+                <div class="property-group">
+                    <label class="property-label">Description</label>
+                    <input type="text" class="property-input" value="${elementData.properties.description}" 
+                           onchange="updateProperty(${elementData.id}, 'description', this.value)">
+                </div>
+                <div class="property-group">
+                    <label class="property-label">Environment</label>
+                    <select class="property-select" onchange="updateProperty(${elementData.id}, 'environment', this.value)">
+                        <option value="development" ${elementData.properties.environment === 'development' ? 'selected' : ''}>Development</option>
+                        <option value="staging" ${elementData.properties.environment === 'staging' ? 'selected' : ''}>Staging</option>
+                        <option value="production" ${elementData.properties.environment === 'production' ? 'selected' : ''}>Production</option>
+                    </select>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">Region</label>
+                    <select class="property-select" onchange="updateProperty(${elementData.id}, 'region', this.value)">
+                        <option value="us-east-1" ${elementData.properties.region === 'us-east-1' ? 'selected' : ''}>US East (N. Virginia)</option>
+                        <option value="us-west-2" ${elementData.properties.region === 'us-west-2' ? 'selected' : ''}>US West (Oregon)</option>
+                        <option value="eu-west-1" ${elementData.properties.region === 'eu-west-1' ? 'selected' : ''}>Europe (Ireland)</option>
+                        <option value="ap-southeast-1" ${elementData.properties.region === 'ap-southeast-1' ? 'selected' : ''}>Asia Pacific (Singapore)</option>
+                    </select>
+                </div>
+                <div class="property-group">
+                    <button class="btn btn-secondary" onclick="deleteElement(${elementData.id})" style="width: 100%; margin-top: 10px;">Delete Element</button>
+                </div>
+            `;
+        }
+
+        // Hide property editor
+        function hidePropertyEditor() {
+            const propertyEditor = document.getElementById('propertyEditor');
+            propertyEditor.innerHTML = '<p style="color: #999; font-style: italic;">Select an element to edit its properties</p>';
+        }
+
+        // Update property
+        function updateProperty(elementId, property, value) {
+            const elementData = canvasElements.find(el => el.id === elementId);
+            if (elementData) {
+                elementData.properties[property] = value;
+            }
+        }
+
+        // Delete element
+        function deleteElement(elementId) {
+            const elementIndex = canvasElements.findIndex(el => el.id === elementId);
+            if (elementIndex !== -1) {
+                canvasElements.splice(elementIndex, 1);
+                
+                const element = document.querySelector(`[data-id="${elementId}"]`);
+                if (element) {
+                    element.remove();
+                }
+                
+                hidePropertyEditor();
+                
+                // Show empty state if no elements
+                if (canvasElements.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                }
+            }
+        }
+
+        // Handle generate
+        function handleGenerate() {
+            if (canvasElements.length === 0) {
+                alert('Please add some AWS services to the canvas first.');
+                return;
+            }
+            
+            const diagramName = document.getElementById('diagramName').value || 'Untitled Diagram';
+            const diagramDescription = document.getElementById('diagramDescription').value || 'No description provided';
+            const diagramAGS = document.getElementById('diagramAGS').value || 'Not specified';
+            
+            const architectureData = {
+                metadata: {
+                    name: diagramName,
+                    description: diagramDescription,
+                    ags: diagramAGS,
+                    timestamp: new Date().toISOString(),
+                    version: '1.0'
+                },
+                elements: canvasElements
+            };
+            
+            console.log('Generated Architecture:', architectureData);
+            alert(`Architecture diagram generated successfully!\n\nName: ${diagramName}\nElements: ${canvasElements.length}\nCheck console for detailed output.`);
+        }
+
+        // Toggle left rail
+        function toggleLeftRail() {
+            const leftRail = document.getElementById('leftRail');
+            const container = document.querySelector('.container');
+            const rightRailCollapsed = document.getElementById('rightRail').classList.contains('collapsed');
+            
+            leftRail.classList.toggle('collapsed');
+            
+            if (leftRail.classList.contains('collapsed')) {
+                if (rightRailCollapsed) {
+                    container.className = 'container both-collapsed';
+                } else {
+                    container.className = 'container left-collapsed';
+                }
+            } else {
+                if (rightRailCollapsed) {
+                    container.className = 'container right-collapsed';
+                } else {
+                    container.className = 'container';
+                }
+            }
+        }
+
+        // Toggle right rail
+        function toggleRightRail() {
+            const rightRail = document.getElementById('rightRail');
+            const container = document.querySelector('.container');
+            const leftRailCollapsed = document.getElementById('leftRail').classList.contains('collapsed');
+            
+            rightRail.classList.toggle('collapsed');
+            
+            if (rightRail.classList.contains('collapsed')) {
+                if (leftRailCollapsed) {
+                    container.className = 'container both-collapsed';
+                } else {
+                    container.className = 'container right-collapsed';
+                }
+            } else {
+                if (leftRailCollapsed) {
+                    container.className = 'container left-collapsed';
+                } else {
+                    container.className = 'container';
+                }
+            }
+        }
+
+        // Handle cancel
+        function handleCancel() {
+            if (canvasElements.length > 0) {
+                if (confirm('Are you sure you want to clear the canvas? This will remove all elements.')) {
+                    canvasElements = [];
+                    document.getElementById('canvasContent').innerHTML = '<div class="empty-state" id="emptyState">Drag AWS services here to start designing your architecture</div>';
+                    hidePropertyEditor();
+                }
+            }
+        }
+
+        // Initialize the app
+        init();
+    </script>
+</body>
+</html>
